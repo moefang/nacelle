@@ -17,14 +17,37 @@ from unidecode import unidecode
 
 class APIHandler(BaseHandler, JSONMixins):
 
+    """
+    This handler provides a quick and easy way to build a
+    pageable/queryable/sortable API from any appengine model instance.
+
+    Simply subclass this handler and configure the options below:
+        model: Appengine model instance
+        cache: Enable/disable storing results in memcache
+        cache_key_prefix: String to prepend to memcache keys (required if cache = True)
+        cache_time: Time in seconds to cache result
+        query: Any iterable which implements count() or __len__() methods
+
+    You should set one of model or query, but not both.  Setting model
+    will allow you to filter and sort results using query parameter in the
+    url.  Setting query will lock the handler to one specific iterable and
+    only the page and page_size query parameters will have any effect.
+
+    >>> class SomeDynamicAPIHandler(APIHandler):
+    >>>     model = someapp.SomeModel
+
+    >>> class SomeStaticAPIHandler(APIHandler):
+    >>>     query = ['john', 'paul', 'joe', 'bob', 'peter', 'paddy', 'jim']
+    >>>     cache = True
+    >>>     cache_key_prefix = 'some_prefix'
+
+    """
+
     model = None
     cache = False
     cache_key_prefix = ''
     cache_time = 300
-
-    def json_response(self, response_text):
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.write(response_text)
+    query = None
 
     def normalise_value(self, value):
         # check if value is int
@@ -48,12 +71,17 @@ class APIHandler(BaseHandler, JSONMixins):
 
     def get(self):
 
-        # Generate the cache key
-        cache_key = self.cache_key_prefix + '-'
-        for k, v in self.request.GET.items():
-            cache_key += k + '=' + unidecode(v)
-
         if self.cache:
+
+            # raise error if cache prefix not set
+            if not self.cache_key_prefix:
+                raise AttributeError('cache_key_prefix is required when cache is enabled')
+
+            # Generate the cache key using query params if any
+            cache_key = self.cache_key_prefix + '-'
+            for k, v in self.request.GET.items():
+                cache_key += k + '=' + unidecode(v)
+
             # check if value stored in cache
             cached_response = memcache.get(cache_key)
             # return cached value if present
@@ -62,54 +90,68 @@ class APIHandler(BaseHandler, JSONMixins):
                 return None
 
         # Retrieve a single entity from the DB by key
-        if 'key' in self.request.GET:
-            key_str = self.request.GET['key']
-            response_text = db.get(db.Key(encoded=key_str)).json
+        if self.model is not None:
+            if 'key' in self.request.GET:
+                key_str = self.request.GET['key']
+                obj = db.get(db.Key(encoded=key_str))
+                # throw 404 if retrieved object is not of type self.model
+                if not isinstance(obj, self.model):
+                    self.abort(404)
 
-            if self.cache:
-                # store computed json object in cache
-                memcache.set(cache_key, response_text, self.cache_time)
-
-            self.json_response(response_text)
-            return None
-
-        # Define our base query
-        query = self.model.all()
-
-        # Add any filters to our query
-        if 'filter' in self.request.GET:
-            filter_params = self.request.GET.getall('filter')
-            for filter_param in filter_params:
-                if '__lt__' in filter_param:
-                    key, val = filter_param.split('__lt__')
-                    val = self.normalise_value(val)
-                    query = query.filter('%s <' % key, val)
-                elif '__gt__' in filter_param:
-                    key, val = filter_param.split('__gt__')
-                    val = self.normalise_value(val)
-                    query = query.filter('%s >' % key, val)
-                elif '__lte__' in filter_param:
-                    key, val = filter_param.split('__lte__')
-                    val = self.normalise_value(val)
-                    query = query.filter('%s <=' % key, val)
-                elif '__gte__' in filter_param:
-                    key, val = filter_param.split('__gte__')
-                    val = self.normalise_value(val)
-                    query = query.filter('%s >=' % key, val)
-                elif '__' in filter_param:
-                    key, val = filter_param.split('__')
-                    val = self.normalise_value(val)
-                    query = query.filter('%s =' % key, val)
-        # order the results of our query
-        if 'order' in self.request.GET:
-            order_params = self.request.GET.getall('order')
-            for order_param in order_params:
+                # serialise retrieved object
                 try:
-                    query = query.order(order_param)
-                except db.PropertyError:
-                    sentry.captureException()
-                    self.json_response('[]')
-                    return None
+                    response_text = obj.get_json()
+                except AttributeError:
+                    response_text = json.dumps(obj)
+
+                if self.cache:
+                    # store computed json object in cache
+                    memcache.set(cache_key, response_text, self.cache_time)
+
+                self.json_response(response_text)
+                return None
+
+        if self.query is not None:
+            query = self.query
+        else:
+            # Define our base query
+            query = self.model.all()
+
+            # Add any filters to our query
+            if 'filter' in self.request.GET:
+                filter_params = self.request.GET.getall('filter')
+                for filter_param in filter_params:
+                    if '__lt__' in filter_param:
+                        key, val = filter_param.split('__lt__')
+                        val = self.normalise_value(val)
+                        query = query.filter('%s <' % key, val)
+                    elif '__gt__' in filter_param:
+                        key, val = filter_param.split('__gt__')
+                        val = self.normalise_value(val)
+                        query = query.filter('%s >' % key, val)
+                    elif '__lte__' in filter_param:
+                        key, val = filter_param.split('__lte__')
+                        val = self.normalise_value(val)
+                        query = query.filter('%s <=' % key, val)
+                    elif '__gte__' in filter_param:
+                        key, val = filter_param.split('__gte__')
+                        val = self.normalise_value(val)
+                        query = query.filter('%s >=' % key, val)
+                    elif '__' in filter_param:
+                        key, val = filter_param.split('__')
+                        val = self.normalise_value(val)
+                        query = query.filter('%s =' % key, val)
+                    else:
+                        self.abort(400)
+            # order the results of our query
+            if 'order' in self.request.GET:
+                order_params = self.request.GET.getall('order')
+                for order_param in order_params:
+                    try:
+                        query = query.order(order_param)
+                    except db.PropertyError:
+                        sentry.captureException()
+                        self.abort(400)
 
         feed_as_dict = {}
 
@@ -137,7 +179,12 @@ class APIHandler(BaseHandler, JSONMixins):
             objects = query
 
         # get JSON representations of the objects and return
-        objects_as_list = [obj.get_json(encode=False) for obj in objects]
+        objects_as_list = []
+        for obj in objects:
+            try:
+                objects_as_list.append(obj.get_json(encode=False))
+            except AttributeError:
+                objects_as_list.append(obj)
         feed_as_dict['feed'] = objects_as_list
         feed_as_json = json.dumps(feed_as_dict)
 
