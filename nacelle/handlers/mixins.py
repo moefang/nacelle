@@ -59,8 +59,6 @@ class TemplateMixins(object):
 class JSONMixins(object):
 
     def json_response(self, response_object):
-        # set the right content-type header
-        self.response.headers['Content-Type'] = 'application/json'
         # if object is a string just return as is
         if isinstance(response_object, basestring):
             self.response.write(response_object)
@@ -68,3 +66,5 @@ class JSONMixins(object):
         else:
             response_object = json.dumps(response_object)
             self.response.write(response_object)
+        # set the right content-type header
+        self.response.headers['Content-Type'] = 'application/json'

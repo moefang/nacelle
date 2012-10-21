@@ -1,5 +1,6 @@
 # stdlib imports
 import json
+import logging
 
 # appengine SDK imports
 from google.appengine.api import memcache
@@ -9,45 +10,28 @@ from google.appengine.ext import db
 from nacelle.conf import sentry
 from nacelle.handlers.base import BaseHandler
 from nacelle.handlers.mixins import JSONMixins
-from nacelle.utils.paginator import EmptyPage
-from nacelle.utils.paginator import PageNotAnInteger
-from nacelle.utils.paginator import Paginator
+from nacelle.handlers.mixins import TemplateMixins
+from nacelle.models.api import CacheKey
 from unidecode import unidecode
 
 
-class APIHandler(BaseHandler, JSONMixins):
+class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
 
     """
     This handler provides a quick and easy way to build a
-    pageable/queryable/sortable API from any appengine model instance.
-
-    Simply subclass this handler and configure the options below:
-        model: Appengine model instance
-        cache: Enable/disable storing results in memcache
-        cache_key_prefix: String to prepend to memcache keys (required if cache = True)
-        cache_time: Time in seconds to cache result
-        query: Any iterable which implements count() or __len__() methods
-
-    You should set one of model or query, but not both.  Setting model
-    will allow you to filter and sort results using query parameter in the
-    url.  Setting query will lock the handler to one specific iterable and
-    only the page and page_size query parameters will have any effect.
-
-    >>> class SomeDynamicAPIHandler(APIHandler):
-    >>>     model = someapp.SomeModel
-
-    >>> class SomeStaticAPIHandler(APIHandler):
-    >>>     query = ['john', 'paul', 'joe', 'bob', 'peter', 'paddy', 'jim']
-    >>>     cache = True
-    >>>     cache_key_prefix = 'some_prefix'
-
+    pageable/queryable/sortable/RESTful(ish) API from any
+    appengine model (full read/write support) or other
+    iterable (read only).
     """
 
     model = None
+    query = None
+
+    # iterable = None
+
     cache = False
     cache_key_prefix = ''
     cache_time = 300
-    query = None
 
     def normalise_value(self, value):
         # check if value is int
@@ -69,127 +53,201 @@ class APIHandler(BaseHandler, JSONMixins):
         # return value if string
         return value
 
-    def get(self):
+    @property
+    def cache_key(self):
+        # Generate the cache key using query params if any
+        cache_key = ''
+        for k, v in self.request.GET.items():
+            cache_key += k + '=' + unidecode(v)
+        return cache_key
 
-        if self.cache:
-
-            # raise error if cache prefix not set
-            if not self.cache_key_prefix:
-                raise AttributeError('cache_key_prefix is required when cache is enabled')
-
-            # Generate the cache key using query params if any
-            cache_key = self.cache_key_prefix + '-'
-            for k, v in self.request.GET.items():
-                cache_key += k + '=' + unidecode(v)
-
-            # check if value stored in cache
-            cached_response = memcache.get(cache_key)
-            # return cached value if present
-            if cached_response is not None:
-                self.json_response(cached_response)
-                return None
-
-        # Retrieve a single entity from the DB by key
-        if self.model is not None:
-            if 'key' in self.request.GET:
-                key_str = self.request.GET['key']
-                obj = db.get(db.Key(encoded=key_str))
-                # throw 404 if retrieved object is not of type self.model
-                if not isinstance(obj, self.model):
-                    self.abort(404)
-
-                # serialise retrieved object
-                try:
-                    response_text = obj.get_json()
-                except AttributeError:
-                    response_text = json.dumps(obj)
-
-                if self.cache:
-                    # store computed json object in cache
-                    memcache.set(cache_key, response_text, self.cache_time)
-
-                self.json_response(response_text)
-                return None
-
-        if self.query is not None:
-            query = self.query
+    def update_cache(self, key, value):
+        if self.cache_time:
+            memcache.set(key, value, time=self.cache_time)
         else:
-            # Define our base query
-            query = self.model.all()
+            memcache.set(key, value)
+        parent_key = self.__class__.__name__
+        keys = CacheKey.all().filter('par_key =', parent_key).get()
+        if keys is None:
+            keys = CacheKey()
+            keys.par_key = parent_key
+        if key not in keys.cache_keys:
+            keys.cache_keys.append(key)
+            keys.put()
 
-            # Add any filters to our query
-            if 'filter' in self.request.GET:
-                filter_params = self.request.GET.getall('filter')
-                for filter_param in filter_params:
-                    if '__lt__' in filter_param:
-                        key, val = filter_param.split('__lt__')
-                        val = self.normalise_value(val)
-                        query = query.filter('%s <' % key, val)
-                    elif '__gt__' in filter_param:
-                        key, val = filter_param.split('__gt__')
-                        val = self.normalise_value(val)
-                        query = query.filter('%s >' % key, val)
-                    elif '__lte__' in filter_param:
-                        key, val = filter_param.split('__lte__')
-                        val = self.normalise_value(val)
-                        query = query.filter('%s <=' % key, val)
-                    elif '__gte__' in filter_param:
-                        key, val = filter_param.split('__gte__')
-                        val = self.normalise_value(val)
-                        query = query.filter('%s >=' % key, val)
-                    elif '__' in filter_param:
-                        key, val = filter_param.split('__')
-                        val = self.normalise_value(val)
-                        query = query.filter('%s =' % key, val)
-                    else:
-                        self.abort(400)
-            # order the results of our query
-            if 'order' in self.request.GET:
-                order_params = self.request.GET.getall('order')
-                for order_param in order_params:
-                    try:
-                        query = query.order(order_param)
-                    except db.PropertyError:
-                        sentry.captureException()
-                        self.abort(400)
-
-        feed_as_dict = {}
-
-        # paginate the query if specified
-        if 'page' in self.request.GET:
-            if 'page_size' in self.request.GET:
-                p_size = int(self.request.GET['page_size'])
+    def flush_cache(self):
+        if self.cache:
+            parent_key = self.__class__.__name__
+            keys = CacheKey.all().filter('par_key =', parent_key).get()
+            if keys is None:
+                del_keys = []
             else:
-                p_size = 20
-            p = Paginator(query, p_size)
-            feed_as_dict['pagesize'] = p_size
-            feed_as_dict['pagecount'] = p.num_pages
-            try:
-                # paginate the result set
-                page = p.page(self.request.GET['page'])
-            except PageNotAnInteger:
-                # If page is not an integer, deliver first page.
-                page = p.page(1)
-            except EmptyPage:
-                # If page is out of range (e.g. 9999), deliver last page of results.
-                page = p.page(p.num_pages)
-            feed_as_dict['page'] = page.number
-            objects = page.object_list
-        else:
-            objects = query
+                del_keys = keys.cache_keys
+            memcache.delete_multi(del_keys)
 
-        # get JSON representations of the objects and return
-        objects_as_list = []
-        for obj in objects:
-            try:
-                objects_as_list.append(obj.get_json(encode=False))
-            except AttributeError:
-                objects_as_list.append(obj)
-        feed_as_dict['feed'] = objects_as_list
-        feed_as_json = json.dumps(feed_as_dict)
+    def get(self, key=None):
 
         if self.cache:
-            # store computed json object in cache
-            memcache.set(cache_key, feed_as_json, self.cache_time)
+            # Build cache key and attempt to pull result from memcache
+            if key:
+                cache_key = self.cache_key_prefix + '-' + key
+            else:
+                cache_key = self.cache_key_prefix + '-' + self.cache_key
+            cached_response = memcache.get(cache_key)
+            if cached_response is not None:
+                return self.json_response(cached_response)
 
-        self.json_response(feed_as_json)
+        # get by key only works if a model has been defined, otherwise
+        # iterable access is performed by index
+        if key:
+            logging.info('Retrieving entity by key: %s' % str(key))
+            if self.model:
+                if 'key:' in key:
+                    key = key.replace('key:', '')
+                entity = self.get_entity_by_key(key)
+            else:
+                entity = self.get_entity_by_index(key)
+            if self.cache:
+                self.update_cache(cache_key, entity)
+            self.json_response(entity)
+        else:
+            # paginate the query if specified
+            if 'page' in self.request.GET:
+                page = int(self.request.GET['page'])
+                if 'page_size' in self.request.GET:
+                    p_size = int(self.request.GET['page_size'])
+                else:
+                    p_size = 20
+                feed_as_dict = self.get_entities(page, p_size)
+            else:
+                feed_as_dict = self.get_entities()
+            if self.cache:
+                self.update_cache(cache_key, feed_as_dict)
+            self.json_response(feed_as_dict)
+
+    def get_entity_by_key(self, key):
+
+        obj = db.get(db.Key(encoded=key))
+        # throw 404 if retrieved object is not of type self.model
+        if not isinstance(obj, self.model):
+            self.abort(404)
+        return obj.get_json()
+
+    def get_entity_by_index(self, index):
+
+        index = int(index)
+        try:
+            obj = self.iterable[index]
+        except IndexError:
+            self.abort(404)
+        return json.dumps(obj)
+
+    def build_query(self):
+
+        # Define our base query
+        query = self.model.all()
+
+        # Add any filters to our query
+        if 'filter' in self.request.GET:
+            filter_params = self.request.GET.getall('filter')
+            for filter_param in filter_params:
+                if '__lt__' in filter_param:
+                    key, val = filter_param.split('__lt__')
+                    val = self.normalise_value(val)
+                    query = query.filter('%s <' % key, val)
+                elif '__gt__' in filter_param:
+                    key, val = filter_param.split('__gt__')
+                    val = self.normalise_value(val)
+                    query = query.filter('%s >' % key, val)
+                elif '__lte__' in filter_param:
+                    key, val = filter_param.split('__lte__')
+                    val = self.normalise_value(val)
+                    query = query.filter('%s <=' % key, val)
+                elif '__gte__' in filter_param:
+                    key, val = filter_param.split('__gte__')
+                    val = self.normalise_value(val)
+                    query = query.filter('%s >=' % key, val)
+                elif '__' in filter_param:
+                    key, val = filter_param.split('__')
+                    val = self.normalise_value(val)
+                    query = query.filter('%s =' % key, val)
+                else:
+                    self.abort(400)
+        # order the results of our query
+        if 'order' in self.request.GET:
+            order_params = self.request.GET.getall('order')
+            for order_param in order_params:
+                try:
+                    query = query.order(order_param)
+                except db.PropertyError:
+                    sentry.captureException()
+                    self.abort(400)
+        return query
+
+    def get_entities(self, page=None, page_size=None):
+
+        if page is not None:
+            offset = (page - 1) * page_size
+            limit = page_size
+        else:
+            offset = 0
+            limit = None
+
+        feed_as_dict = {
+            'page': page,
+            'pagesize': page_size,
+        }
+        if self.query:
+            results = self.query.run(offset=offset, limit=limit)
+            feed_as_dict['items_total'] = self.query.count(limit=1000000000)
+        elif self.model:
+            q = self.build_query()
+            feed_as_dict['items_total'] = q.count(limit=1000000000)
+            results = q.run(offset=offset, limit=limit)
+        # elif self.iterable:
+        #     results = self.iterable()
+        #     feed_as_dict['total_items'] = len(results)
+        else:
+            self.abort(403)
+        if page_size is None:
+            page_size = feed_as_dict['items_total']
+        pagecount = feed_as_dict['items_total'] / page_size
+        if feed_as_dict['items_total'] % page_size:
+            pagecount += 1
+        feed_as_dict['pagecount'] = pagecount
+        feed_as_dict['feed'] = [obj.get_json(encode=False) for obj in results]
+        feed_as_dict['items_on_page'] = len(feed_as_dict['feed'])
+        return feed_as_dict
+
+    def post(self, key=None):
+
+        if key is not None:
+            if 'key:' in key:
+                key = key.replace('key:', '')
+            obj = db.get(db.Key(encoded=key))
+            # throw 404 if retrieved object is not of type self.model
+            if not isinstance(obj, self.model):
+                self.abort(404)
+            obj.set_json(self.request.body)
+            obj.put()
+            new_entity = obj.get_json()
+        else:
+            # add new entity
+            posted_entity = json.loads(self.request.body)
+            new_entity = self.model()
+            new_entity.set_json(posted_entity)
+            new_entity.put()
+            new_entity = new_entity.get_json()
+        self.flush_cache()
+        self.json_response(new_entity)
+
+    def delete(self, key):
+        if 'key:' in key:
+            key = key.replace('key:', '')
+        obj = db.get(db.Key(encoded=key))
+        try:
+            obj.delete()
+        except AttributeError:
+            self.abort(404)
+        self.flush_cache()
+        self.json_response({'status': '200 OK'})

@@ -4,7 +4,7 @@
 from nacelle.models.properties import DerivedProperty
 
 
-def derived_roperty(derive_func=None, *args, **kwargs):
+def derived_property(derive_func=None, *args, **kwargs):
 
     """
     Use this function as a function decorator to store

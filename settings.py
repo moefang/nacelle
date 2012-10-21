@@ -7,3 +7,9 @@ SENTRY_DSN = ''
 
 
 TEMPLATE_EXTENSIONS = []
+
+ROUTES = [[
+    (r'/memorise', 'demoapp.handlers.DemoMemoHandler'),
+    (r'/api', 'demoapp.handlers.DemoAPIHandler'),
+    (r'/api/(.*)', 'demoapp.handlers.DemoAPIHandler'),
+]]

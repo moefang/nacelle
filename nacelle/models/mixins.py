@@ -1,10 +1,20 @@
+# stdlib imports
 import json
+
+# third-party imports
 from google.appengine.ext import db
+
+# local imports
 from nacelle.utils.serialize import property_to_json
 from nacelle.utils.serialize import json_to_property
 
 
 class JSONMixins(object):
+
+    """
+    Adding these Mixins to your model class will allow
+    serialisation/deserialisation of your model instances.
+    """
 
     def get_json(self, encode=True):
 
