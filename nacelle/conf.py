@@ -12,8 +12,8 @@ import os
 # Try to import settings.py from the project root
 try:
     import settings as user_settings
-except ImportError:
-    logging.info('No settings file found, using defaults')
+except ImportError, e:
+    logging.info('No settings file found, using defaults: %s' % e)
 
 # Import the default settings file
 from nacelle import default_settings

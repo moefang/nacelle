@@ -1,3 +1,5 @@
+from routes import demo_routes
+
 # Project Settings
 DEBUG = True
 
@@ -8,8 +10,4 @@ SENTRY_DSN = ''
 
 TEMPLATE_EXTENSIONS = []
 
-ROUTES = [[
-    (r'/memorise', 'demoapp.handlers.DemoMemoHandler'),
-    (r'/api', 'demoapp.handlers.DemoAPIHandler'),
-    (r'/api/(.*)', 'demoapp.handlers.DemoAPIHandler'),
-]]
+ROUTES = [demo_routes]
