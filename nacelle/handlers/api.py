@@ -316,6 +316,9 @@ class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
             key = key.replace('key:', '')
         # retrieve entity from datastore
         obj = db.get(db.Key(encoded=key))
+        # throw 404 if retrieved object is not of type self.model
+        if not isinstance(obj, self.model):
+            self.abort(404)
         # delete entity
         try:
             obj.delete()
