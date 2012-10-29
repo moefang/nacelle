@@ -1,0 +1,4 @@
+cron:
+- description: Send all unsent mail
+  url: /_cron/mailer?deferred
+  schedule: every 10 minutes

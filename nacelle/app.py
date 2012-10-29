@@ -6,8 +6,10 @@
 # Add 'lib' dir to the python path
 import os
 import sys
+PROJECT_ROOT = os.path.join(os.path.abspath(os.path.dirname(__file__)), os.pardir)
 this_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(this_dir, 'lib'))
+sys.path.insert(0, os.path.join(PROJECT_ROOT, 'apps'))
 
 # import required modules
 from nacelle.conf import settings

@@ -55,7 +55,7 @@ class BaseHandler(webapp2.RequestHandler):
                     'exc_type': str(exc_info[0]),
                     'exc_value': str(exc_info[1]),
                 }
-                response = {'exc_info': exc_info_str, 'error_report': error_report, 'traceback': frames}
+                response = {'exc_info': exc_info_str}
                 self.json_response(response)
         else:
             self.response.write('Oops... An error occurred.')

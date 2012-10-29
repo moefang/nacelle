@@ -41,10 +41,15 @@ class DemoAPIHandlerFixed(APIHandler):
     """
 
     model = DemoModel
-    query = DemoModel.all().filter('randomnum <=', 5000).order('randomnum')
+    query = DemoModel.all().filter('randomnum <=', 250000).order('randomnum')
     cache_key_prefix = 'demo-api-fixed'
     cache = True
-    cache_time = 60
+    cache_time = None
+    auth = {
+        'GET': 'all',
+        'POST': 'all',
+        'DELETE': 'all'
+    }
 
 
 class DemoAPIHandlerDynamic(APIHandler):
@@ -54,6 +59,7 @@ class DemoAPIHandlerDynamic(APIHandler):
     """
 
     model = DemoModel
+    allowed_methods = ['GET']
 
 
 ROUTES = [

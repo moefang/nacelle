@@ -8,6 +8,7 @@ from google.appengine.ext import db
 
 # local imports
 from nacelle.conf import sentry
+from nacelle.decorators.auth import auth_control
 from nacelle.handlers.base import BaseHandler
 from nacelle.handlers.mixins import JSONMixins
 from nacelle.handlers.mixins import TemplateMixins
@@ -33,6 +34,12 @@ class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
     cache_key_prefix = ''
     cache_time = 300
     allowed_methods = ['GET', 'POST', 'DELETE']
+    # possible values for auth_control are 'all', 'login', 'admin' and None
+    auth = {
+        'GET': 'all',
+        'POST': 'admin',
+        'DELETE': 'admin'
+    }
 
     def normalise_value(self, value):
 
@@ -74,10 +81,13 @@ class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
         Add object to memcache and add its key to a global list we can use for flushing on change
         """
         # Set value in cache for configured time
-        if self.cache_time:
-            memcache.set(key, value, time=self.cache_time)
-        else:
-            memcache.set(key, value)
+        try:
+            if self.cache_time:
+                memcache.set(key, value, time=self.cache_time)
+            else:
+                memcache.set(key, value)
+        except ValueError:
+            logging.error('Response too big to cache, you probably shouldn\'t use this query')
         # Add key to stored list of keys
         parent_key = self.__class__.__name__
         keys = CacheKey.all().filter('par_key =', parent_key).get()
@@ -104,6 +114,7 @@ class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
             # flush keys
             memcache.delete_multi(del_keys)
 
+    @auth_control
     def get(self, key=None):
 
         # check if method allowed
@@ -233,20 +244,24 @@ class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
             'pagesize': page_size,
         }
         # check if we have predetermined query
+        count_key = self.cache_key_prefix + '-' + 'count'
         if self.query:
-            results = self.query.run(offset=offset, limit=limit)
-            feed_as_dict['items_total'] = self.query.count(limit=1000000000)
+            results = self.query.run(offset=offset, limit=limit, batch_size=1000)
+            feed_as_dict['items_total'] = memcache.get(count_key) or self.query.count(limit=1000000000)
         # check if model is defined
         elif self.model:
             q = self.build_query()
-            feed_as_dict['items_total'] = q.count(limit=1000000000)
-            results = q.run(offset=offset, limit=limit)
+            feed_as_dict['items_total'] = memcache.get(count_key) or q.count(limit=1000000000)
+            results = q.run(offset=offset, limit=limit, batch_size=1000)
         # elif self.iterable:
         #     results = self.iterable()
         #     feed_as_dict['total_items'] = len(results)
         # else abort with 403 as not allowed
         else:
             self.abort(403)
+        # cache the item count
+        if self.cache:
+            self.update_cache(count_key, feed_as_dict['items_total'])
         # get page size
         if page_size is None:
             page_size = feed_as_dict['items_total']
@@ -267,6 +282,7 @@ class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
         # return response dict
         return feed_as_dict
 
+    @auth_control
     def post(self, key=None):
 
         # check if method is allowed
@@ -305,6 +321,7 @@ class APIHandler(BaseHandler, JSONMixins, TemplateMixins):
         # return newly created/updated entity
         self.json_response(new_entity)
 
+    @auth_control
     def delete(self, key):
 
         # check if method is allowed
