@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ -f ".datastore" ]; then
+    echo "Copying datastore into RAM"
+    cp .datastore /run/shm/datastore
+fi
+
+echo "Running dev_appserver"
+dev_appserver.py . --use_sqlite --datastore_path=/run/shm/datastore --enable_sendmail
+
+if [ -f "/run/shm/datastore" ]; then
+    echo "Copying datastore back to project directory"
+    cp /run/shm/datastore .datastore
+fi
+
+echo "Exiting..."
