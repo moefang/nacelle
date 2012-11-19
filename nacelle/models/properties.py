@@ -1,6 +1,7 @@
 """
-    nacelle microframework
+Collection of custom properties for use on datastore models
 """
+# third-party imports
 from google.appengine.ext import db
 
 

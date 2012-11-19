@@ -21,12 +21,19 @@
             ReferenceProperty <-> str (with prefix: 'key:')
             SelfReferenceProperty <-> str (with prefix: 'key:')
 """
+# stdlib imports
 import datetime
 import iso8601
+
+# third-party imports
 from google.appengine.ext import db
 
 
 def property_to_json(val):
+
+    """
+    Convert a datastore property to a JSON serialisable object
+    """
 
     # Recursively process values in a list
     if isinstance(val, list):
@@ -60,6 +67,10 @@ def property_to_json(val):
 
 
 def json_to_property(val):
+
+    """
+    Convert a JSON serialisable object to a datastore property
+    """
 
     # Recursively process values in a list
     if isinstance(val, list):

@@ -18,7 +18,6 @@ import urllib2
 import uuid
 import warnings
 from urlparse import urlparse
-from google.appengine.ext import deferred
 
 import raven
 from raven.conf import defaults
@@ -379,7 +378,7 @@ class Client(object):
 
         transport = self._registry.get_transport(parsed)
         # Push sending of errors to the background so they're async
-        deferred.defer(transport.send, data, headers)
+        transport.send(data, headers)
 
     def _get_log_message(self, data):
         # decode message so we can show the actual event

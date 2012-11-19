@@ -2,19 +2,12 @@ application: nacelle-microframework
 version: 1
 runtime: python27
 api_version: 1
-threadsafe: false
+threadsafe: true
 
 builtins:
 - deferred: on
-# - appstats: on
 
 handlers:
-# - url: /favicon\.ico
-#   static_files: media/img/favicon.ico
-#   upload: media/img/favicon\.ico
-- url: /remote_api
-  script: $PYTHON_LIB/google/appengine/ext/remote_api/handler.py
-  login: admin
 - url: /media
   static_dir: media
 - url: /.*
@@ -28,17 +21,3 @@ libraries:
   version: "latest"
 - name: webapp2
   version: "latest"
-
-# pagespeed:
-#   domains_to_rewrite:
-#   - yourapp.appspot.com
-#   url_blacklist:
-#   - http://yourapp.appspot.com/admin/*
-#   - https://yourapp.appspot.com/admin/*
-#   enabled_rewriters:
-#   - CombineCss
-#   - MinifyCss
-#   - CombineJs
-#   - JsOptimize
-#   disabled_rewriters:
-#   - ImageStripColorProfile

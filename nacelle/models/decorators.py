@@ -1,6 +1,7 @@
 """
-    nacelle microframework
+Collection of model decorators for the nacelle microframework
 """
+# local imports
 from nacelle.models.properties import DerivedProperty
 
 

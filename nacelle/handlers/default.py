@@ -1,21 +1,35 @@
-from nacelle.handlers.base import BaseHandler
-from nacelle.handlers.mixins import TemplateMixins
-from nacelle.handlers.mixins import JSONMixins
+"""
+A simple collection of handlers that are used in a new project
+"""
+# local imports
+from nacelle.handlers.base import JSONHandler
+from nacelle.handlers.base import TemplateHandler
 
 
-class NewProjectHandler(BaseHandler, TemplateMixins):
+class NewProjectHandler(TemplateHandler):
 
-    def get(self):
-        return self.template_response('welcometonacelle.html', **{})
+    """
+    Default index handler for all new nacelle projects
+    """
+
+    template = 'welcometonacelle.html'
 
 
-class TemplateRaiseHandler(BaseHandler, TemplateMixins):
+class TemplateRaiseHandler(TemplateHandler):
 
-    def get(self):
+    """
+    Handler to demonstrate the template debug error page
+    """
+
+    def get_context(self):
         self.abort(500)
 
 
-class JSONRaiseHandler(BaseHandler, JSONMixins):
+class JSONRaiseHandler(JSONHandler):
 
-    def get(self):
+    """
+    Handler to demonstrate the JSON debug messages
+    """
+
+    def get_context(self):
         self.abort(500)

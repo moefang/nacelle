@@ -1,4 +1,6 @@
+# All cronjobs should be defined in this file
+
 cron:
-- description: Send all unsent mail
-  url: /_cron/mailer?deferred
-  schedule: every 10 minutes
+# - description: Send all unsent mail
+#   url: /_cron/mailer?deferred
+#   schedule: every 5 minutes

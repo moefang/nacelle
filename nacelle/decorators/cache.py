@@ -1,8 +1,14 @@
-from google.appengine.api import memcache
-import itertools
-from hashlib import md5
-from functools import wraps
+"""
+A collection of cache related decorators for nacelle
+"""
+# stdlib imports
 import inspect
+import itertools
+from functools import wraps
+from hashlib import md5
+
+# third-party imports
+from google.appengine.api import memcache
 
 
 class memorise(object):
@@ -106,8 +112,11 @@ class memorise(object):
 
 
 class memcache_none:
-        """Stub class for storing None values in memcache,
+
+        """
+        Stub class for storing None values in memcache,
         so we can distinguish between None values and not-found
         entries.
         """
+
         pass

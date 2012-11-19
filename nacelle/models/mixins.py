@@ -1,3 +1,7 @@
+"""
+A collection of useful mixins for serialisation/deserialisation
+of model instances
+"""
 # stdlib imports
 import json
 
@@ -20,10 +24,13 @@ class JSONMixins(object):
 
         """Build and return a JSON representation of our model"""
 
+        # convert entity to dict
         instance_dict = db.to_dict(self)
+        # loop over and serialise dict values
         for key, val in instance_dict.items():
             instance_dict[key] = property_to_json(val)
-        instance_dict['key'] = 'key:' + str(self.key())
+        # serialise entity's key
+        instance_dict['key'] = str(self.key())
 
         if encode:
             # dump to JSON and return
@@ -43,6 +50,7 @@ class JSONMixins(object):
 
         # loop over all vals in JSON object
         for key, val in json_dict.items():
+            # skip 'key' field if specified
             if key == 'key':
                 continue
             processed_val = json_to_property(val)

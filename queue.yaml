@@ -1,6 +1,8 @@
+# Appengine task queues should be defined here
+
 queue:
 - name: mail-queue
   max_concurrent_requests: 1
-  rate: 1/s
+  rate: 5/s
   retry_parameters:
     task_retry_limit: 0

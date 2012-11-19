@@ -1,3 +1,6 @@
+"""
+A collection of error handling decorators for nacelle
+"""
 # stdlib imports
 import logging
 import time

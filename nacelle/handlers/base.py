@@ -3,66 +3,95 @@
 
     These are our base handlers which all others should inherit from
 """
-import logging
-import sys
+# third-party imports
 import webapp2
-from nacelle import error
-from nacelle.conf import settings
-from nacelle.conf import sentry
+
+# local imports
+from nacelle.handlers.mixins import JSONMixins
+from nacelle.handlers.mixins import TemplateMixins
 
 
-class BaseHandler(webapp2.RequestHandler):
+class TemplateHandler(TemplateMixins, webapp2.RequestHandler):
 
-    def handle_exception(self, exception, debug):
+    """
+    Simple handler to provide a simple method of rendering a
+    template with a specified context.
+    """
 
-        # Log the exception
-        logging.exception(exception)
+    # name of the template to use for rendering
+    template = None
 
-        # collect our error data
-        exc_info = sys.exc_info()
-        error_report = {
-                'method': self.request.method,
-                'url': self.request.path_url,
-                'query_string': self.request.query_string,
-                # 'data': environ.get('wsgi.input'),
-                'headers': dict(self.request.headers),
-                'env': dict((
-                        ('REMOTE_ADDR', self.request.environ['REMOTE_ADDR']),
-                        ('SERVER_NAME', self.request.environ['SERVER_NAME']),
-                        ('SERVER_PORT', self.request.environ['SERVER_PORT']),
-                    )),
-            }
+    @property
+    def default_context(self):
 
-        if settings.ENABLE_SENTRY:
-            # Log the error to sentry
-            sentry.capture('Exception',
-                exc_info=exc_info,
-                data={'sentry.interfaces.Http': error_report},
-            )
+        """
+        Builds a default context for all TemplateHandler
+        requests that will be present in every subclass
 
-        # Set a custom message.
-        if settings.DEBUG:
-            if hasattr(self, 'template_response'):
-                error.render_html(self)
-            elif hasattr(self, 'json_response'):
-                frames = []
-                for frame in error._get_frames(exc_info[2], False):
-                    new_frame = {}
-                    for k, v in frame.__dict__.items():
-                        new_frame[k] = str(v)
-                    frames.append(new_frame)
-                exc_info_str = {
-                    'exc_type': str(exc_info[0]),
-                    'exc_value': str(exc_info[1]),
-                }
-                response = {'exc_info': exc_info_str}
-                self.json_response(response)
-        else:
-            self.response.write('Oops... An error occurred.')
+        Returns:
+            dict: dictionary of key/value pairs to render into all templates
+        """
 
-        # If the exception is a HTTPException, use its error code.
-        # Otherwise use a generic 500 error code.
-        if isinstance(exception, webapp2.HTTPException):
-            self.response.set_status(exception.code)
-        else:
-            self.response.set_status(500)
+        # empty dictionary for context
+        context = {}
+        # add the request object to the template context
+        context['request'] = self.request
+        # return the default context
+        return context
+
+    def get_context(self):
+
+        """
+        This method should be overridden to provide any additional
+        context when rendering the specified template
+
+        Returns:
+            dict: dictionary of key/value pairs to render into template
+        """
+
+        # return empty dict unless overridden
+        return {}
+
+    def get(self):
+
+        """
+        Handles all HTTP GET requests for TemplateHandler
+        """
+
+        # build default context object
+        context = self.default_context
+        # update default context object with additional context
+        context.update(self.get_context())
+        # render the context into a Jinja2 template and return it
+        return self.template_response(self.template, **context)
+
+
+class JSONHandler(JSONMixins, webapp2.RequestHandler):
+
+    """
+    Simple handler to build and return a JSON object
+    """
+
+    def get_context(self):
+
+        """
+        This method should be overridden to build a dictionary
+        that can be serialised to JSON and returned.
+
+        Returns:
+            dict: dictionary of key/value pairs to serialise
+        """
+
+        # return empty dict unless overridden
+        return {}
+
+    def get(self):
+
+        """
+        Handles all HTTP GET requests for TemplateHandler
+        """
+
+        # build dictionary to be serialised
+        context = self.get_context()
+        # serialise ad return dictionary as JSON object
+        return self.json_response(context)

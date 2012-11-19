@@ -5,9 +5,11 @@ Code: https://github.com/django/django/blob/master/django/core/paginator.py
 Docs: https://docs.djangoproject.com/en/1.4/topics/pagination/
 License: https://github.com/django/django/blob/master/LICENSE
 """
+# stdlib imports
 from math import ceil
 
 
+# Define some necessary exceptions
 class InvalidPage(Exception):
     pass
 
