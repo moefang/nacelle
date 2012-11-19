@@ -65,7 +65,7 @@ class TemplateMixins(object):
         """
 
         # build a choiceloader from our found template directories
-        template_loader = jinja2.jinja2.ChoiceLoader(self.get_template_dirs())
+        template_loader = jinja2.jinja2.ChoiceLoader(list(self.get_template_dirs()))
         # define our default template extensions
         template_extensions = [
             'jinja2.ext.autoescape',
