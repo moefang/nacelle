@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# This is a simple script to automate the process of copying the
+# appengine datastore into RAM before running.  This gives a ~10x
+# speedup on datastore operations locally.  Probably only works on
+# Ubuntu (see: haven't bothered to check)
+
+
 if [ -f ".datastore" ]; then
     echo "Copying datastore into RAM"
     cp .datastore /run/shm/datastore

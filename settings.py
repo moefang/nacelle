@@ -18,7 +18,9 @@ SENTRY_DSN = 'http://41f3eb61604f4bedbb24bfcce03b102b:4471a09a79bc4df2a25bf5434c
 TEMPLATE_EXTENSIONS = []
 TEMPLATE_FILTERS = []
 
-# Define engineauth config here if required
+# Define engineauth config here if required engine auth
+# is used to provide federated login for nacelle and allows
+# login via various providers such as in the examples below
 
 engineauth = {
     'secret_key': '24bfcce03b102b4471a09a79bc4df2a25bf5434c4c79',

@@ -15,14 +15,17 @@ from mailer.routes import ROUTES as mailer_routes
 
 # define all of our project's routes
 ROUTES = [
-    # Default route to display a welcome page on a new project build
     [
+        # Default route to display a welcome page on a new project build
         (r'/', 'nacelle.handlers.default.NewProjectHandler'),
+        # Default auth routes for engineauth
         (r'/login', 'nacelle.handlers.auth.LoginHandler'),
         (r'/logout', 'nacelle.handlers.auth.LogoutHandler'),
     ],
     # routes for our demo app
     [PathPrefixRoute('/demo', demoapp_routes)],
+    # json time routes module
     jsontime_routes,
+    # mailer routes module
     mailer_routes,
 ]

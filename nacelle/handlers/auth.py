@@ -1,8 +1,15 @@
+"""
+Authentication related handlers for nacelle
+"""
 # local imports
 from nacelle.handlers.base import TemplateHandler
 
 
 class LoginHandler(TemplateHandler):
+
+    """
+    Handles login requests for username/password login
+    """
 
     template = 'login.html'
 
@@ -21,6 +28,10 @@ class LoginHandler(TemplateHandler):
 
 
 class LogoutHandler(TemplateHandler):
+
+    """
+    Handles logout requests for all users logged in via engineauth
+    """
 
     def get(self):
 
