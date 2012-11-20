@@ -13,6 +13,9 @@ class AdminUser(db.Model):
     """
     Stores email addresses of additional users who should
     be allowed to access any admin only areas of the site.
+
+    These users must be logged in via appengine's users
+    service
     """
 
     # email address

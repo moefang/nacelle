@@ -14,6 +14,10 @@ class NewProjectHandler(TemplateHandler):
 
     template = 'welcometonacelle.html'
 
+    def post(self):
+        # call get method when POST
+        self.get()
+
 
 class TemplateRaiseHandler(TemplateHandler):
 
