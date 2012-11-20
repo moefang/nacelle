@@ -11,6 +11,7 @@ from webapp2_extras.routes import PathPrefixRoute
 # have added your own routes
 from demoapp.demoapp import ROUTES as demoapp_routes
 from jsontime.routes import ROUTES as jsontime_routes
+from mailer.routes import ROUTES as mailer_routes
 
 # define all of our project's routes
 ROUTES = [
@@ -19,4 +20,5 @@ ROUTES = [
     # routes for our demo app
     [PathPrefixRoute('/demo', demoapp_routes)],
     jsontime_routes,
+    mailer_routes,
 ]
