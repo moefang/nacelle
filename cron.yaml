@@ -3,4 +3,4 @@
 cron:
 - description: Send all unsent scheduled mail
   url: /cron/mailer/send_scheduled?defer
-  schedule: every 30 minutes
+  schedule: every 30 minutes synchronized
