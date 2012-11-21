@@ -16,6 +16,7 @@ from nacelle.handlers.api import DynamicQueryAPIHandler
 from nacelle.handlers.api import FixedQueryAPIHandler
 from nacelle.handlers.base import JSONHandler
 from nacelle.decorators.cache import memorise
+from nacelle.decorators.engineauth import login_required
 from nacelle.models.base import JSONModel
 from nacelle.utils import counter
 from nacelle.utils.datastore import count_query
@@ -159,6 +160,36 @@ class DemoCounterAPIHandler(JSONHandler):
         self.json_response({'status': '200 OK', 'hit_count': hit_count})
 
 
+class DemoEngineAuthHandler(JSONHandler):
+
+    @login_required(['twitter', 'github'])
+    def get(self):
+        return self.json_response({'status': '200 OK'})
+
+    def post(self):
+        self.get()
+
+
+class DemoEngineAuthHandler1(JSONHandler):
+
+    @login_required()
+    def get(self):
+        return self.json_response({'status': '200 OK'})
+
+    def post(self):
+        self.get()
+
+
+class DemoEngineAuthHandler2(JSONHandler):
+
+    @login_required('twitter')
+    def get(self):
+        return self.json_response({'status': '200 OK'})
+
+    def post(self):
+        self.get()
+
+
 # Define the required routes for our demo app
 ROUTES = [
     # memcache handler route
@@ -173,4 +204,7 @@ ROUTES = [
     Route(r'/dynamic_query/(.*)', 'demoapp.demoapp.DemoDynamicQueryHandler'),
     # sharded counter handler route
     Route(r'/hitcount', 'demoapp.demoapp.DemoCounterAPIHandler'),
+    Route(r'/engineauth', 'demoapp.demoapp.DemoEngineAuthHandler'),
+    Route(r'/engineauth1', 'demoapp.demoapp.DemoEngineAuthHandler1'),
+    Route(r'/engineauth2', 'demoapp.demoapp.DemoEngineAuthHandler2'),
 ]

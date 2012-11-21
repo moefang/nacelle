@@ -47,6 +47,12 @@ engineauth['provider.auth'] = {
 #     'scope': 'https://www.googleapis.com/auth/plus.me',
 # }
 
+# Github Authentication
+engineauth['provider.github'] = {
+    'client_id': '4d307544432ad0e6b9e9',
+    'client_secret': 'c37179b16cc7e64b8cd83dc6fa9855b6be7d4522',
+}
+
 # Twitter Authentication
 engineauth['provider.twitter'] = {
     'client_id': 'npfrn1kMGlG2rFVfhwkDZQ',
