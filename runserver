@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Nacelle Microframework
+# Copyright (c) Patrick Carey 2012
+#
 # This is a simple script to automate the process of copying the
 # appengine datastore into RAM before running.  This gives a ~10x
 # speedup on datastore operations locally.  Probably only works on

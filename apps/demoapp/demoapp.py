@@ -16,10 +16,7 @@ from nacelle.handlers.api import DynamicQueryAPIHandler
 from nacelle.handlers.api import FixedQueryAPIHandler
 from nacelle.handlers.base import JSONHandler
 from nacelle.decorators.cache import memorise
-from nacelle.decorators.engineauth import login_required
 from nacelle.models.base import JSONModel
-from nacelle.utils import counter
-from nacelle.utils.datastore import count_query
 
 
 class DemoModel(JSONModel):
@@ -51,39 +48,6 @@ class DemoMemoHandler(JSONHandler):
         """
 
         return {'time': datetime.datetime.utcnow().isoformat()}
-
-
-class DemoCountHandler(JSONHandler):
-
-    """
-    Simple handler to illustrate nacelle's built in count functions.
-    While these functions do their best to count datastore entities
-    efficiently, this is always going to be a suboptimal solution for
-    any problem due to the nature of appengine.  If at all possible
-    you should avoid attempting to count datastore entities synchronously.
-    A better solution in this case would be to make use of nacelle's
-    sharded counter support.
-    """
-
-    def get_context(self):
-
-        # count DemoModel records
-        count = count_query(DemoModel.all(keys_only=True))
-        # return dict for serialisation
-        return {'count': count}
-
-    def post(self):
-
-        """
-        To provide POST support for a handler, simply define a post() method
-        """
-
-        # build 100 new DemoModel instances (for testing purposes)
-        instances = [DemoModel(someint=1) for x in range(100)]
-        # store the newly created DemoModel instances
-        db.put(instances)
-        # return a JSON response to the client
-        return self.json_response({'status': '200 OK'})
 
 
 class DemoQueryHandler(FixedQueryAPIHandler):
@@ -129,67 +93,6 @@ class DemoDynamicQueryHandler(DynamicQueryAPIHandler):
     allowed_methods = ['GET', 'POST']
 
 
-class DemoCounterAPIHandler(JSONHandler):
-
-    """
-    This handler demonstrates the use of nacelle's simple sharded counters
-    """
-
-    def get(self):
-
-        """
-        Retrieve and return the specified counter's value
-        """
-
-        # retireve counter value
-        hit_count = counter.get_count('hit_count')
-        # return counter value as JSON object
-        self.json_response({'status': '200 OK', 'hit_count': hit_count})
-
-    def post(self):
-
-        """
-        Increment and return the specified counter's value
-        """
-
-        # increment the specified counter
-        counter.increment('hit_count')
-        # get the counter value
-        hit_count = counter.get_count('hit_count')
-        # return the counter value as JSON object
-        self.json_response({'status': '200 OK', 'hit_count': hit_count})
-
-
-class DemoEngineAuthHandler(JSONHandler):
-
-    @login_required(['twitter', 'github'])
-    def get(self):
-        return self.json_response({'status': '200 OK'})
-
-    def post(self):
-        self.get()
-
-
-class DemoEngineAuthHandler1(JSONHandler):
-
-    @login_required()
-    def get(self):
-        return self.json_response({'status': '200 OK'})
-
-    def post(self):
-        self.get()
-
-
-class DemoEngineAuthHandler2(JSONHandler):
-
-    @login_required('twitter')
-    def get(self):
-        return self.json_response({'status': '200 OK'})
-
-    def post(self):
-        self.get()
-
-
 # Define the required routes for our demo app
 ROUTES = [
     # memcache handler route
@@ -202,9 +105,4 @@ ROUTES = [
     # dynamic query handler routes
     Route(r'/dynamic_query', 'demoapp.demoapp.DemoDynamicQueryHandler'),
     Route(r'/dynamic_query/(.*)', 'demoapp.demoapp.DemoDynamicQueryHandler'),
-    # sharded counter handler route
-    Route(r'/hitcount', 'demoapp.demoapp.DemoCounterAPIHandler'),
-    Route(r'/engineauth', 'demoapp.demoapp.DemoEngineAuthHandler'),
-    Route(r'/engineauth1', 'demoapp.demoapp.DemoEngineAuthHandler1'),
-    Route(r'/engineauth2', 'demoapp.demoapp.DemoEngineAuthHandler2'),
 ]

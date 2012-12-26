@@ -1,21 +1,37 @@
+# AppEngine AppID of your app
 application: nacelle-microframework
+# Currently active version of your app
 version: 1
+# Nacelle requires at least the Python 2.7 runtime
 runtime: python27
 api_version: 1
+# Mark our app as threadsafe so that we can serve multiple concurrent requests
 threadsafe: true
 
+# Here we can enable any appengine builtins required for our project
 builtins:
+# The deferred builtin is required for sentry/raven operation, if you
+# aren't using a sentry server you can safely disable this
 - deferred: on
 
+# These are our WSGI handlers for this project
+# Nacelle handles static serving itself so it is not necessary to serve static
+# assets using appengine's own handler, however it is simple to do this should
+# you want
 handlers:
-- url: /media
-  static_dir: media
+# Uncomment this to enable serving of static assets using appengines own static
+# serving functions
+# - url: /media
+#   static_dir: media
 - url: /.*
   script: nacelle.app.wsgi
 
+# Warmup services are enabled to ensure that we can spin up on demand instances
+# in response to increasing traffic should they be required
 inbound_services:
 - warmup
 
+# Required libraries should be enabled here (use appengine included versions where possible so that we can reduce warmup/deploy time)
 libraries:
 - name: jinja2
   version: "latest"

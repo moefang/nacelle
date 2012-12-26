@@ -1,12 +1,12 @@
 import datetime
 import requests
 
-url = 'http://localhost:8080'
-# url = 'https://nacelle-microframework.appspot.com'
+# url = 'http://localhost:8080'
+url = 'https://nacelle-microframework.appspot.com'
 suffix = '/mailer/send_scheduled'
 
 
-for x in range(5):
+for x in range(10):
 
     time = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
 

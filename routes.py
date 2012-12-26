@@ -10,22 +10,21 @@ from webapp2_extras.routes import PathPrefixRoute
 # import demo routes.  You should probably remove these when you
 # have added your own routes
 from demoapp.demoapp import ROUTES as demoapp_routes
+from default_app.routes import ROUTES as default_app_routes
 from jsontime.routes import ROUTES as jsontime_routes
 from mailer.routes import ROUTES as mailer_routes
+from sharded_counter.routes import ROUTES as counter_routes
 
 # define all of our project's routes
 ROUTES = [
-    [
-        # Default route to display a welcome page on a new project build
-        (r'/', 'nacelle.handlers.default.NewProjectHandler'),
-        # Default auth routes for engineauth
-        (r'/login', 'nacelle.handlers.auth.LoginHandler'),
-        (r'/logout', 'nacelle.handlers.auth.LogoutHandler'),
-    ],
+    # default routes for a new nacelle project
+    default_app_routes,
     # routes for our demo app
     [PathPrefixRoute('/demo', demoapp_routes)],
     # json time routes module
     jsontime_routes,
     # mailer routes module
     mailer_routes,
+    # counter routes
+    counter_routes,
 ]

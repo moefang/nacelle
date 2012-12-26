@@ -10,9 +10,9 @@ from pytz.gae import pytz
 
 # local imports
 from nacelle.handlers.base import JSONHandler
-from nacelle.utils.timeutils import get_current_time
-from nacelle.utils.timeutils import get_timezone
-from nacelle.utils.timeutils import get_utcoffset_as_string
+from utils import get_current_time
+from utils import get_timezone
+from utils import get_utcoffset_as_string
 
 
 class TimeAPIHandler(JSONHandler):

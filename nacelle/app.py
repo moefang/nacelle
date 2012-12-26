@@ -1,14 +1,35 @@
 """
-    nacelle microframework
+Nacelle microframework
+Copyright (C) Patrick Carey 2012
 
-    this is our main wsgi entry point so any initial setup should happen here
+This is our main WSGI entry point so any initial setup should happen here
 """
 # Add 'lib' and 'apps' dirs to the python path
 import os
 import sys
+
+
+def find_lib_directories(root):
+
+    """
+    Walk the project tree and find any lib directories so that we can
+    add them to the path before running our app
+    """
+
+    for r, d, f in os.walk(root):
+        for dirname in d:
+            if dirname == 'lib':
+                yield os.path.join(r, dirname)
+
+
 PROJECT_ROOT = os.path.join(os.path.abspath(os.path.dirname(__file__)), os.pardir)
-this_dir = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(this_dir, 'lib'))
+
+# Find lib directories and add them to the python path
+LIB_DIRS = find_lib_directories(PROJECT_ROOT)
+for directory in LIB_DIRS:
+    sys.path.insert(0, directory)
+
+# Add our 'apps' directory to the system path
 sys.path.insert(0, os.path.join(PROJECT_ROOT, 'apps'))
 
 # import required modules
@@ -21,4 +42,4 @@ import webapp2
 ROUTES = list(itertools.chain.from_iterable(routes.ROUTES))
 
 # Define our WSGI app so GAE can run it
-wsgi = webapp2.WSGIApplication(ROUTES, debug=settings.DEBUG)
+wsgi = webapp2.WSGIApplication(ROUTES, debug=settings.DEBUG, config=settings.WSGI_CONFIG)

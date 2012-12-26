@@ -10,8 +10,8 @@ from google.appengine.api import memcache
 from google.appengine.ext import db
 
 # local imports
-from nacelle.models.counter import GeneralCounterShard
-from nacelle.models.counter import GeneralCounterShardConfig
+from models import GeneralCounterShard
+from models import GeneralCounterShardConfig
 
 
 def get_count(name):

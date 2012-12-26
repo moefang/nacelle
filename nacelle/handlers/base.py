@@ -1,18 +1,48 @@
 """
-    nacelle microframework
+Nacelle microframework
+Copyright (C) Patrick Carey 2012
 
-    These are our base handlers which all others should inherit from
+These are our base handlers which all others should inherit from
 """
+# stdlib imports
+import uuid
+
 # third-party imports
-from google.appengine.ext import ndb
 import webapp2
+from webapp2_extras import sessions
 
 # local imports
 from nacelle.handlers.mixins import JSONMixins
 from nacelle.handlers.mixins import TemplateMixins
 
 
-class TemplateHandler(TemplateMixins, webapp2.RequestHandler):
+class BaseHandler(webapp2.RequestHandler):
+
+    def dispatch(self):
+
+        # Get a session store for this request.
+        self.session_store = sessions.get_store(request=self.request)
+
+        # Set a CSRF token for this request if there is None
+        csrf_token = self.session.get('csrf_token', None)
+        if csrf_token is None:
+            self.session['csrf_token'] = str(uuid.uuid4())
+
+        try:
+            # Dispatch the request.
+            webapp2.RequestHandler.dispatch(self)
+        finally:
+            # Save all sessions.
+            self.session_store.save_sessions(self.response)
+
+    @webapp2.cached_property
+    def session(self):
+
+        # Returns a session using the default cookie key.
+        return self.session_store.get_session()
+
+
+class TemplateHandler(TemplateMixins, BaseHandler):
 
     """
     Simple handler to provide a simple method of rendering a
@@ -22,11 +52,14 @@ class TemplateHandler(TemplateMixins, webapp2.RequestHandler):
     # name of the template to use for rendering
     template = None
 
-    def get_messages(self, key='_messages'):
-            try:
-                return self.request.session.data.pop(key)
-            except KeyError:
-                return None
+    def get_messages(self):
+        try:
+            return self.session.pop('messages')
+        except KeyError:
+            return None
+
+    def add_message(self, message):
+        self.session['messages'].append(message)
 
     @property
     def default_context(self):
@@ -45,20 +78,7 @@ class TemplateHandler(TemplateMixins, webapp2.RequestHandler):
         context['request'] = self.request
         # add any messages to the context
         context['messages'] = self.get_messages()
-
-        session = self.request.session if self.request.session else None
-        user = self.request.user if self.request.user else None
-        profiles = None
-
-        if user:
-            profile_keys = [ndb.Key('UserProfile', p) for p in user.auth_ids]
-            profiles = ndb.get_multi(profile_keys)
-
-            # add user details to context if logged in
-            context['user'] = user
-            context['session'] = session
-            context['profiles'] = profiles
-            context['user_id'] = user.auth_ids[0].split(':', 1)[1]
+        context['session'] = self.session
 
         # return the default context
         return context
@@ -90,7 +110,7 @@ class TemplateHandler(TemplateMixins, webapp2.RequestHandler):
         return self.template_response(self.template, **context)
 
 
-class JSONHandler(JSONMixins, webapp2.RequestHandler):
+class JSONHandler(JSONMixins, BaseHandler):
 
     """
     Simple handler to build and return a JSON object
@@ -109,13 +129,13 @@ class JSONHandler(JSONMixins, webapp2.RequestHandler):
         # return empty dict unless overridden
         return {}
 
-    def get(self):
+    def get(self, *args, **kwargs):
 
         """
         Handles all HTTP GET requests for TemplateHandler
         """
 
         # build dictionary to be serialised
-        context = self.get_context()
+        context = self.get_context(*args, **kwargs)
         # serialise ad return dictionary as JSON object
         return self.json_response(context)
